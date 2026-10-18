@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Golden League · Borrush</title><link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>🏆</text></svg>">
+<style>
+:root{--bg:#121212;--card:#1d1d1d;--line:#333;--tx:#eee;--mu:#999;--g:#e0a912;--g2:#ffd966}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,Arial,sans-serif}
+header{padding:22px 16px 10px;text-align:center;background:linear-gradient(#2a2208,var(--bg))}
+h1{margin:0;color:var(--g2);letter-spacing:2px;font-size:clamp(22px,5vw,38px)}header p{margin:4px;color:var(--mu)}
+nav{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:8px;position:sticky;top:0;background:var(--bg);z-index:5}
+nav button,select{background:var(--card);color:var(--tx);border:1px solid var(--line);padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--g);color:#000;border-color:var(--g);font-weight:700}
+main{max-width:1100px;margin:auto;padding:12px}.demo{background:#5a1d1d;text-align:center;padding:6px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+h2{color:var(--g);margin:0 0 10px;font-size:19px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.rec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.rec small{color:var(--mu)}.rec b{display:block;font-size:22px;color:var(--g2)}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--g);cursor:pointer;position:sticky;top:0;background:var(--card)}td.l,th.l{text-align:left}
+tr.p1 td{background:#3d3208}tr.p2 td{background:#2b2b2b}tr.p3 td{background:#3a2412}a{color:var(--g2);cursor:pointer;text-decoration:underline dotted}
+.bar{fill:var(--g)}svg text{fill:var(--mu);font-size:9px}.lg span{margin-right:12px;font-size:12px}details{border-top:1px solid var(--line);padding:6px 0}summary{cursor:pointer}
+</style></head><body>
+<header><h1>🏆 GOLDEN LEAGUE</h1><p id="sub">Borrush · estadísticas oficiales</p></header>
+<div id="demo" class="demo" hidden>Datos de ejemplo — sustitúyelos con tu data.json real</div>
+<nav id="nav"></nav><main id="app">Cargando…</main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const TABS=['Clasificación','Estadísticas','Jugador','Récords','Palmarés','Partidas'];let D,S,tab=0,temp='all',who='',vs='',sortK='pts',sortD=-1;
+const kd=(k,m)=>m?+(k/m).toFixed(2):k,f2=n=>(+n).toFixed(2).replace(/\.00$/,'');
+fetch('data.json').then(r=>r.json()).then(d=>{D=d;const by={};D.partidas.forEach(m=>(by[m.id]??=[]).push(m));
+ for(const g of Object.values(by))g.forEach(m=>{m.puesto=1+g.filter(o=>o.kills>m.kills||o.kills===m.kills&&o.muertes<m.muertes).length;m.puntos=D.puntos[m.puesto-1]??0});
+ D.by=by;D.ids=Object.keys(by).sort((a,b)=>by[a][0].fecha.localeCompare(by[b][0].fecha)||a.localeCompare(b));who=D.jugadores[0]||'';
+ $('#demo').hidden=!D.demo;document.title=D.liga;$('#nav').innerHTML=TABS.map((t,i)=>`<button onclick="go(${i})">${t}</button>`).join('');go(0)});
+function go(i){tab=i;[...$('#nav').children].forEach((b,j)=>b.classList.toggle('on',j==i));draw()}
+function stats(fn=()=>true){const titles={};D.palmares.forEach(p=>titles[p.campeon]=(titles[p.campeon]||0)+1);
+ return D.jugadores.map((n,i)=>{const r=D.partidas.filter(m=>m.jugador===n&&fn(m)),k=r.reduce((a,m)=>a+m.kills,0),d=r.reduce((a,m)=>a+m.muertes,0);
+  return{n,i,pj:r.length,kills:k,muertes:d,pts:r.reduce((a,m)=>a+m.puntos,0),vic:r.filter(m=>m.puesto==1).length,pod:r.filter(m=>m.puesto<=3).length,
+   max:Math.max(0,...r.map(m=>m.kills)),best:r.length?Math.min(...r.map(m=>m.puesto)):'-',kd:kd(k,d),kpp:r.length?+(k/r.length).toFixed(2):0,pv:r.length?Math.round(100*r.filter(m=>m.puesto==1).length/r.length):0,tit:titles[n]||0,rows:r}})}
+function table(cols,rows,cls){return`<div class=w><table><tr>${cols.map(c=>`<th class="${c[2]?'l':''}" ${c[3]?`onclick="srt('${c[0]}')"`:''}>${c[1]}${sortK==c[0]?(sortD<0?' ▼':' ▲'):''}</th>`).join('')}</tr>`+
+ rows.map((r,i)=>`<tr class="${cls?cls(r,i):''}">${cols.map(c=>`<td class="${c[2]?'l':''}">${c[0]=='n'?`<a onclick="pl('${esc(r.n).replace(/'/g,"\\'")}')">${esc(r.n)}</a>`:esc(r[c[0]]??'')}</td>`).join('')}</tr>`).join('')+'</table></div>'}
+function srt(k){sortD=sortK==k?-sortD:-1;sortK=k;draw()}function pl(n){who=n;go(2)}
+function seasons(){return[...new Set(D.partidas.map(m=>m.temporada))].sort((a,b)=>a-b)}
+function sel(id,opts,val,fn){return`<select onchange="${fn}(this.value)">${opts.map(o=>`<option value="${esc(o[0])}" ${o[0]==val?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`}
+function bars(v,l,h=130){if(!v.length)return'';const W=Math.max(300,v.length*26),mx=Math.max(1,...v),b=W/v.length;
+ return`<div class=w><svg viewBox="0 0 ${W} ${h+22}" style="min-width:${Math.min(W,700)}px;width:100%">`+v.map((x,i)=>`<rect class=bar x="${i*b+3}" y="${h-x/mx*h}" width="${b-6}" height="${x/mx*h}"><title>${esc(l[i])}: ${x}</title></rect><text x="${i*b+b/2}" y="${h-x/mx*h-3}" text-anchor="middle">${x}</text><text x="${i*b+b/2}" y="${h+12}" text-anchor="middle">${i+1}</text>`).join('')+'</svg></div>'}
+function lines(ser,labels){const W=640,H=200,mx=Math.max(1,...ser.flatMap(s=>s.v)),cols=['#ffd966','#6fa8dc','#93c47d','#e06666','#c27ba0'],n=labels.length;
+ const X=i=>30+(n>1?i*(W-40)/(n-1):0),Y=v=>H-v/mx*(H-10);
+ return`<svg viewBox="0 0 ${W} ${H+18}" style="width:100%">`+ser.map((s,k)=>`<polyline fill=none stroke="${cols[k%5]}" stroke-width=2 points="${s.v.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/>`).join('')+
+ labels.map((l,i)=>`<text x="${X(i)}" y="${H+12}" text-anchor="middle">${esc(l)}</text>`).join('')+`<text x=2 y=12>${mx}</text></svg><div class=lg>${ser.map((s,k)=>`<span style="color:${cols[k%5]}">● ${esc(s.n)}</span>`).join('')}</div>`}
+function draw(){const a=$('#app');[view0,view1,view2,view3,view4,view5][tab](a)}
+function view0(a){const fn=temp=='all'?()=>true:m=>m.temporada==temp;let r=stats(fn).filter(x=>x.pj);
+ r.sort((x,y)=>y.pts-x.pts||y.kills-x.kills||y.vic-x.vic||x.i-y.i);r.forEach((x,i)=>x.pos=i+1);
+ const ids=D.ids.filter(id=>temp=='all'||D.by[id][0].temporada==temp),top=r.slice(0,5).map(x=>({n:x.n,v:ids.reduce((c,id)=>{const m=D.by[id].find(o=>o.jugador==x.n);c.push((c.at(-1)||0)+(m?m.puntos:0));return c},[])}));
+ a.innerHTML=`<div class=card><h2>Clasificación ${sel('t',[['all','Histórica'],...seasons().map(s=>[s,'Temporada '+s])],temp,'setT')}</h2>${table([['pos','Pos'],['n','Jugador',1],['pj','PJ'],['pts','Puntos'],['kills','Kills'],['muertes','Muertes'],['kd','K/D'],['vic','Victorias'],['pod','Podios'],['kpp','Kills/partida']],r,(x,i)=>i<3?'p'+(i+1):'')}</div>
+ <div class=card><h2>Evolución de puntos (top 5)</h2>${lines(top,ids.map((_,i)=>i+1))}</div>`}
+function setT(v){temp=v;draw()}
+function view1(a){const r=stats().filter(x=>x.pj).sort((x,y)=>sortD*((x[sortK]>y[sortK])-(x[sortK]<y[sortK])||0));
+ a.innerHTML=`<div class=card><h2>Estadísticas globales <small style="color:var(--mu)">(pulsa una cabecera para ordenar)</small></h2>${table([['n','Jugador',1,1],['pj','PJ',0,1],['kills','Kills',0,1],['muertes','Muertes',0,1],['kd','K/D',0,1],['kpp','Kills/p',0,1],['max','Máx kills',0,1],['vic','Victorias',0,1],['pv','% vict.',0,1],['pod','Podios',0,1],['best','Mejor puesto',0,1],['pts','Puntos',0,1],['tit','Títulos',0,1]],r)}</div>`}
+function view2(a){const s=stats(),A=s.find(x=>x.n==who),B=vs&&s.find(x=>x.n==vs),ns=D.jugadores.map(n=>[n,n]);if(!A){a.innerHTML='Sin jugadores';return}
+ const ks=[['pj','Partidas'],['kills','Kills'],['muertes','Muertes'],['kd','K/D'],['kpp','Kills/partida'],['max','Máx kills'],['vic','Victorias'],['pv','% victorias'],['pod','Podios'],['best','Mejor puesto'],['pts','Puntos'],['tit','Títulos']];
+ a.innerHTML=`<div class=card><h2>Ficha ${sel('w',ns,who,'setW')} <small style="color:var(--mu)">comparar con</small> ${sel('v',[['','—'],...ns],vs,'setV')}</h2>
+ <div class=grid>${ks.map(k=>`<div class=rec><small>${k[1]}</small><b>${A[k[0]]}${B?` <span style="color:#6fa8dc;font-size:16px">vs ${B[k[0]]}</span>`:''}</b></div>`).join('')}</div></div>
+ <div class=card><h2>Kills por partida</h2>${bars(A.rows.map(m=>m.kills),A.rows.map(m=>m.id))}</div>
+ <div class=card><h2>Puntos por partida</h2>${bars(A.rows.map(m=>m.puntos),A.rows.map(m=>m.id))}</div>
+ <div class=card><h2>Historial</h2>${table([['id','Partida',1],['fecha','Fecha'],['mapa','Mapa'],['puesto','Puesto'],['kills','Kills'],['muertes','Muertes'],['puntos','Puntos']],A.rows.slice().reverse())}</div>`}
+function setW(v){who=v;draw()}function setV(v){vs=v;draw()}
+function view3(a){const s=stats().filter(x=>x.pj),mp=D.minPartidas||5,el=s.filter(x=>x.pj>=mp),top=(l,k,u)=>{if(!l.length)return['-','-'];const b=l.reduce((p,c)=>c[k]>p[k]?c:p);return[b.n,b[k]+(u||'')]};
+ const best=D.partidas.reduce((p,c)=>c.kills>p.kills?c:p,D.partidas[0]||{kills:0,jugador:'-',id:''}),rr=[['Más kills (total)',...top(s,'kills')],['Más victorias',...top(s,'vic')],['Más podios',...top(s,'pod')],['Más puntos',...top(s,'pts')],['Más títulos',...top(s,'tit')],
+ [`Mejor K/D (mín. ${mp} PJ)`,...top(el,'kd')],[`Mejor media de kills (mín. ${mp} PJ)`,...top(el,'kpp')],['Más muertes',...top(s,'muertes')],['Más kills en UNA partida',best.jugador,best.kills+' · '+best.id]];
+ const tk=D.ids.map(id=>[id,D.by[id].reduce((c,m)=>c+m.kills,0)]).sort((x,y)=>y[1]-x[1])[0]||['-',0],tot=D.partidas.reduce((c,m)=>c+m.kills,0);
+ a.innerHTML=`<div class=card><h2>Récords</h2><div class=grid>${rr.map(r=>`<div class=rec><small>${r[0]}</small><b>${esc(r[2])}</b>${esc(r[1])}</div>`).join('')}</div></div>
+ <div class=card><h2>Totales de la liga</h2><div class=grid>${[['Jugadores',D.jugadores.length],['Partidas',D.ids.length],['Temporadas',seasons().length],['Kills totales',tot],['Muertes totales',D.partidas.reduce((c,m)=>c+m.muertes,0)],['Kills/jugador/partida',D.partidas.length?f2(tot/D.partidas.length):0],['Partida más sangrienta',tk[0]+' ('+tk[1]+' kills)']].map(r=>`<div class=rec><small>${r[0]}</small><b>${esc(r[1])}</b></div>`).join('')}</div></div>
+ <div class=card><h2>Kills totales por partida</h2>${bars(D.ids.map(id=>D.by[id].reduce((c,m)=>c+m.kills,0)),D.ids)}</div>`}
+function view4(a){const m={};D.palmares.forEach(p=>{[['campeon','o'],['subcampeon','p'],['tercero','b'],['mvp','mvp'],['killer','k']].forEach(([f,t])=>{if(p[f]){m[p[f]]??={n:p[f],o:0,p:0,b:0,mvp:0,k:0};m[p[f]][t]++}})});
+ const r=Object.values(m).map(x=>({...x,t:x.o+x.p+x.b})).sort((x,y)=>y.o-x.o||y.p-x.p||y.b-x.b);
+ a.innerHTML=`<div class=card><h2>Palmarés</h2>${table([['temporada','Temp.'],['anio','Año'],['campeon','🥇 Campeón',1],['subcampeon','🥈 Subcampeón',1],['tercero','🥉 Tercero',1],['mvp','MVP',1],['killer','Máx. killer',1],['killsKiller','Kills']],D.palmares.slice().reverse())}</div>
+ <div class=card><h2>Medallero</h2>${table([['n','Jugador',1],['o','🥇'],['p','🥈'],['b','🥉'],['t','Total'],['mvp','MVP'],['k','Máx. killer']],r)}</div>`}
+function view5(a){a.innerHTML=`<div class=card><h2>Partidas (${D.ids.length})</h2>`+D.ids.slice().reverse().map(id=>{const g=D.by[id].slice().sort((x,y)=>x.puesto-y.puesto);return`<details><summary><b>${esc(id)}</b> · ${esc(g[0].fecha)} · ${esc(g[0].mapa)} — 🥇 ${esc(g[0].jugador)} (${g[0].kills} kills)</summary>${table([['puesto','Puesto'],['jugador','Jugador',1],['kills','Kills'],['muertes','Muertes'],['puntos','Puntos']],g,(x,i)=>i<3?'p'+(i+1):'')}</details>`}).join('')+'</div>'}
+</script></body></html>
