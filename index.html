@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Golden League · Borrush</title><link rel="icon" href="data:image/svg+xml,<svg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 100 100%27><text y=%27.9em%27 font-size=%2790%27>🏆</text></svg>">
+<style>
+:root{--bg:#121212;--card:#1d1d1d;--line:#333;--tx:#eee;--mu:#999;--g:#e0a912;--g2:#ffd966}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:15px/1.4 system-ui,Arial,sans-serif}
+header{padding:22px 16px 10px;text-align:center;background:linear-gradient(#2a2208,var(--bg))}
+h1{margin:0;color:var(--g2);letter-spacing:2px;font-size:clamp(22px,5vw,38px)}header p{margin:4px;color:var(--mu)}
+nav{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;padding:8px;position:sticky;top:0;background:var(--bg);z-index:5}
+nav button,select{background:var(--card);color:var(--tx);border:1px solid var(--line);padding:8px 14px;border-radius:8px;font:inherit;cursor:pointer}
+nav button.on{background:var(--g);color:#000;border-color:var(--g);font-weight:700}
+main{max-width:1100px;margin:auto;padding:12px}.demo{background:#5a1d1d;text-align:center;padding:6px;font-size:13px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0}
+h2{color:var(--g);margin:0 0 10px;font-size:19px}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px}
+.rec{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.rec small{color:var(--mu)}.rec b{display:block;font-size:22px;color:var(--g2)}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%}th,td{padding:7px 9px;text-align:center;border-bottom:1px solid var(--line);white-space:nowrap}
+th{color:var(--g);cursor:pointer;position:sticky;top:0;background:var(--card)}td.l,th.l{text-align:left}
+tr.p1 td{background:#3d3208}tr.p2 td{background:#2b2b2b}tr.p3 td{background:#3a2412}a{color:var(--g2);cursor:pointer;text-decoration:underline dotted}
+.bar{fill:var(--g)}svg text{fill:var(--mu);font-size:9px}.lg span{margin-right:12px;font-size:12px}details{border-top:1px solid var(--line);padding:6px 0}summary{cursor:pointer}
+input{background:#111;color:var(--tx);border:1px solid var(--line);border-radius:6px;padding:7px;font:inherit}.k{width:72px;text-align:center}.bt{background:var(--g);color:#000;border:0;padding:8px 14px;border-radius:8px;font:inherit;font-weight:700;cursor:pointer}.bt.r{background:#a33;color:#fff}.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:6px 0}.ok{background:#1d3d1d;text-align:center;padding:8px;border-radius:8px;margin:8px 0}
+</style></head><body>
+<header><h1>🏆 GOLDEN LEAGUE</h1><p id="sub">Borrush · estadísticas oficiales</p></header>
+<div id="demo" class="demo" hidden>Datos de ejemplo — sustitúyelos con tu data.json real</div>
+<nav id="nav"></nav><main id="app">Cargando…</main>
+<script>
+const $=s=>document.querySelector(s),esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const TABS=['Clasificación','Estadísticas','Jugador','Récords','Palmarés','Partidas','⚙ Admin'];let adm=false,msg='',D,S,tab=0,temp='all',who='',vs='',sortK='pts',sortD=-1;
+const kd=(k,m)=>m?+(k/m).toFixed(2):k,f2=n=>(+n).toFixed(2).replace(/\.00$/,'');
+function prep(){const by={};D.partidas.forEach(m=>(by[m.id]??=[]).push(m));
+ for(const g of Object.values(by))g.forEach(m=>{m.puesto=1+g.filter(o=>o.kills>m.kills||o.kills===m.kills&&o.muertes<m.muertes).length;m.puntos=D.puntos[m.puesto-1]??0});
+ D.by=by;D.ids=Object.keys(by).sort((a,b)=>by[a][0].fecha.localeCompare(by[b][0].fecha)||a.localeCompare(b))}
+fetch('/api/data').then(r=>r.ok?r.json():null).catch(()=>null).then(d=>d&&d.partidas?d:fetch('data.json').then(r=>r.json())).then(d=>{D=d;prep();who=D.jugadores[0]||'';
+ $('#demo').hidden=!D.demo;document.title=D.liga;$('#nav').innerHTML=TABS.map((t,i)=>`<button onclick="go(${i})">${t}</button>`).join('');go(0)});
+function go(i){tab=i;[...$('#nav').children].forEach((b,j)=>b.classList.toggle('on',j==i));draw()}
+function stats(fn=()=>true){const titles={};D.palmares.forEach(p=>titles[p.campeon]=(titles[p.campeon]||0)+1);
+ return D.jugadores.map((n,i)=>{const r=D.partidas.filter(m=>m.jugador===n&&fn(m)),k=r.reduce((a,m)=>a+m.kills,0),d=r.reduce((a,m)=>a+m.muertes,0);
+  return{n,i,pj:r.length,kills:k,muertes:d,pts:r.reduce((a,m)=>a+m.puntos,0),vic:r.filter(m=>m.puesto==1).length,pod:r.filter(m=>m.puesto<=3).length,
+   max:Math.max(0,...r.map(m=>m.kills)),best:r.length?Math.min(...r.map(m=>m.puesto)):'-',kd:kd(k,d),kpp:r.length?+(k/r.length).toFixed(2):0,pv:r.length?Math.round(100*r.filter(m=>m.puesto==1).length/r.length):0,tit:titles[n]||0,rows:r}})}
+function table(cols,rows,cls){return`<div class=w><table><tr>${cols.map(c=>`<th class="${c[2]?'l':''}" ${c[3]?`onclick="srt('${c[0]}')"`:''}>${c[1]}${sortK==c[0]?(sortD<0?' ▼':' ▲'):''}</th>`).join('')}</tr>`+
+ rows.map((r,i)=>`<tr class="${cls?cls(r,i):''}">${cols.map(c=>`<td class="${c[2]?'l':''}">${c[0]=='n'?`<a onclick="pl('${esc(r.n).replace(/'/g,"\\'")}')">${esc(r.n)}</a>`:esc(r[c[0]]??'')}</td>`).join('')}</tr>`).join('')+'</table></div>'}
+function srt(k){sortD=sortK==k?-sortD:-1;sortK=k;draw()}function pl(n){who=n;go(2)}
+function seasons(){return[...new Set(D.partidas.map(m=>m.temporada))].sort((a,b)=>a-b)}
+function sel(id,opts,val,fn){return`<select onchange="${fn}(this.value)">${opts.map(o=>`<option value="${esc(o[0])}" ${o[0]==val?'selected':''}>${esc(o[1])}</option>`).join('')}</select>`}
+function bars(v,l,h=130){if(!v.length)return'';const W=Math.max(300,v.length*26),mx=Math.max(1,...v),b=W/v.length;
+ return`<div class=w><svg viewBox="0 0 ${W} ${h+22}" style="min-width:${Math.min(W,700)}px;width:100%">`+v.map((x,i)=>`<rect class=bar x="${i*b+3}" y="${h-x/mx*h}" width="${b-6}" height="${x/mx*h}"><title>${esc(l[i])}: ${x}</title></rect><text x="${i*b+b/2}" y="${h-x/mx*h-3}" text-anchor="middle">${x}</text><text x="${i*b+b/2}" y="${h+12}" text-anchor="middle">${i+1}</text>`).join('')+'</svg></div>'}
+function lines(ser,labels){const W=640,H=200,mx=Math.max(1,...ser.flatMap(s=>s.v)),cols=['#ffd966','#6fa8dc','#93c47d','#e06666','#c27ba0'],n=labels.length;
+ const X=i=>30+(n>1?i*(W-40)/(n-1):0),Y=v=>H-v/mx*(H-10);
+ return`<svg viewBox="0 0 ${W} ${H+18}" style="width:100%">`+ser.map((s,k)=>`<polyline fill=none stroke="${cols[k%5]}" stroke-width=2 points="${s.v.map((v,i)=>X(i)+','+Y(v)).join(' ')}"/>`).join('')+
+ labels.map((l,i)=>`<text x="${X(i)}" y="${H+12}" text-anchor="middle">${esc(l)}</text>`).join('')+`<text x=2 y=12>${mx}</text></svg><div class=lg>${ser.map((s,k)=>`<span style="color:${cols[k%5]}">● ${esc(s.n)}</span>`).join('')}</div>`}
+function draw(){const a=$('#app');[view0,view1,view2,view3,view4,view5,view6][tab](a)}
+function view0(a){const fn=temp=='all'?()=>true:m=>m.temporada==temp;let r=stats(fn).filter(x=>x.pj);
+ r.sort((x,y)=>y.pts-x.pts||y.kills-x.kills||y.vic-x.vic||x.i-y.i);r.forEach((x,i)=>x.pos=i+1);
+ const ids=D.ids.filter(id=>temp=='all'||D.by[id][0].temporada==temp),top=r.slice(0,5).map(x=>({n:x.n,v:ids.reduce((c,id)=>{const m=D.by[id].find(o=>o.jugador==x.n);c.push((c.at(-1)||0)+(m?m.puntos:0));return c},[])}));
+ a.innerHTML=`<div class=card><h2>Clasificación ${sel('t',[['all','Histórica'],...seasons().map(s=>[s,'Temporada '+s])],temp,'setT')}</h2>${table([['pos','Pos'],['n','Jugador',1],['pj','PJ'],['pts','Puntos'],['kills','Kills'],['muertes','Muertes'],['kd','K/D'],['vic','Victorias'],['pod','Podios'],['kpp','Kills/partida']],r,(x,i)=>i<3?'p'+(i+1):'')}</div>
+ <div class=card><h2>Evolución de puntos (top 5)</h2>${lines(top,ids.map((_,i)=>i+1))}</div>`}
+function setT(v){temp=v;draw()}
+function view1(a){const r=stats().filter(x=>x.pj).sort((x,y)=>sortD*((x[sortK]>y[sortK])-(x[sortK]<y[sortK])||0));
+ a.innerHTML=`<div class=card><h2>Estadísticas globales <small style="color:var(--mu)">(pulsa una cabecera para ordenar)</small></h2>${table([['n','Jugador',1,1],['pj','PJ',0,1],['kills','Kills',0,1],['muertes','Muertes',0,1],['kd','K/D',0,1],['kpp','Kills/p',0,1],['max','Máx kills',0,1],['vic','Victorias',0,1],['pv','% vict.',0,1],['pod','Podios',0,1],['best','Mejor puesto',0,1],['pts','Puntos',0,1],['tit','Títulos',0,1]],r)}</div>`}
+function view2(a){const s=stats(),A=s.find(x=>x.n==who),B=vs&&s.find(x=>x.n==vs),ns=D.jugadores.map(n=>[n,n]);if(!A){a.innerHTML='Sin jugadores';return}
+ const ks=[['pj','Partidas'],['kills','Kills'],['muertes','Muertes'],['kd','K/D'],['kpp','Kills/partida'],['max','Máx kills'],['vic','Victorias'],['pv','% victorias'],['pod','Podios'],['best','Mejor puesto'],['pts','Puntos'],['tit','Títulos']];
+ a.innerHTML=`<div class=card><h2>Ficha ${sel('w',ns,who,'setW')} <small style="color:var(--mu)">comparar con</small> ${sel('v',[['','—'],...ns],vs,'setV')}</h2>
+ <div class=grid>${ks.map(k=>`<div class=rec><small>${k[1]}</small><b>${A[k[0]]}${B?` <span style="color:#6fa8dc;font-size:16px">vs ${B[k[0]]}</span>`:''}</b></div>`).join('')}</div></div>
+ <div class=card><h2>Kills por partida</h2>${bars(A.rows.map(m=>m.kills),A.rows.map(m=>m.id))}</div>
+ <div class=card><h2>Puntos por partida</h2>${bars(A.rows.map(m=>m.puntos),A.rows.map(m=>m.id))}</div>
+ <div class=card><h2>Historial</h2>${table([['id','Partida',1],['fecha','Fecha'],['mapa','Mapa'],['puesto','Puesto'],['kills','Kills'],['muertes','Muertes'],['puntos','Puntos']],A.rows.slice().reverse())}</div>`}
+function setW(v){who=v;draw()}function setV(v){vs=v;draw()}
+function view3(a){const s=stats().filter(x=>x.pj),mp=D.minPartidas||5,el=s.filter(x=>x.pj>=mp),top=(l,k,u)=>{if(!l.length)return['-','-'];const b=l.reduce((p,c)=>c[k]>p[k]?c:p);return[b.n,b[k]+(u||'')]};
+ const best=D.partidas.reduce((p,c)=>c.kills>p.kills?c:p,D.partidas[0]||{kills:0,jugador:'-',id:''}),rr=[['Más kills (total)',...top(s,'kills')],['Más victorias',...top(s,'vic')],['Más podios',...top(s,'pod')],['Más puntos',...top(s,'pts')],['Más títulos',...top(s,'tit')],
+ [`Mejor K/D (mín. ${mp} PJ)`,...top(el,'kd')],[`Mejor media de kills (mín. ${mp} PJ)`,...top(el,'kpp')],['Más muertes',...top(s,'muertes')],['Más kills en UNA partida',best.jugador,best.kills+' · '+best.id]];
+ const tk=D.ids.map(id=>[id,D.by[id].reduce((c,m)=>c+m.kills,0)]).sort((x,y)=>y[1]-x[1])[0]||['-',0],tot=D.partidas.reduce((c,m)=>c+m.kills,0);
+ a.innerHTML=`<div class=card><h2>Récords</h2><div class=grid>${rr.map(r=>`<div class=rec><small>${r[0]}</small><b>${esc(r[2])}</b>${esc(r[1])}</div>`).join('')}</div></div>
+ <div class=card><h2>Totales de la liga</h2><div class=grid>${[['Jugadores',D.jugadores.length],['Partidas',D.ids.length],['Temporadas',seasons().length],['Kills totales',tot],['Muertes totales',D.partidas.reduce((c,m)=>c+m.muertes,0)],['Kills/jugador/partida',D.partidas.length?f2(tot/D.partidas.length):0],['Partida más sangrienta',tk[0]+' ('+tk[1]+' kills)']].map(r=>`<div class=rec><small>${r[0]}</small><b>${esc(r[1])}</b></div>`).join('')}</div></div>
+ <div class=card><h2>Kills totales por partida</h2>${bars(D.ids.map(id=>D.by[id].reduce((c,m)=>c+m.kills,0)),D.ids)}</div>`}
+function view4(a){const m={};D.palmares.forEach(p=>{[['campeon','o'],['subcampeon','p'],['tercero','b'],['mvp','mvp'],['killer','k']].forEach(([f,t])=>{if(p[f]){m[p[f]]??={n:p[f],o:0,p:0,b:0,mvp:0,k:0};m[p[f]][t]++}})});
+ const r=Object.values(m).map(x=>({...x,t:x.o+x.p+x.b})).sort((x,y)=>y.o-x.o||y.p-x.p||y.b-x.b);
+ a.innerHTML=`<div class=card><h2>Palmarés</h2>${table([['temporada','Temp.'],['anio','Año'],['campeon','🥇 Campeón',1],['subcampeon','🥈 Subcampeón',1],['tercero','🥉 Tercero',1],['mvp','MVP',1],['killer','Máx. killer',1],['killsKiller','Kills']],D.palmares.slice().reverse())}</div>
+ <div class=card><h2>Medallero</h2>${table([['n','Jugador',1],['o','🥇'],['p','🥈'],['b','🥉'],['t','Total'],['mvp','MVP'],['k','Máx. killer']],r)}</div>`}
+function view5(a){a.innerHTML=`<div class=card><h2>Partidas (${D.ids.length})</h2>`+D.ids.slice().reverse().map(id=>{const g=D.by[id].slice().sort((x,y)=>x.puesto-y.puesto);return`<details><summary><b>${esc(id)}</b> · ${esc(g[0].fecha)} · ${esc(g[0].mapa)} — 🥇 ${esc(g[0].jugador)} (${g[0].kills} kills)</summary>${table([['puesto','Puesto'],['jugador','Jugador',1],['kills','Kills'],['muertes','Muertes'],['puntos','Puntos']],g,(x,i)=>i<3?'p'+(i+1):'')}</details>`}).join('')+'</div>'}
+
+const KEY=()=>sessionStorage.getItem('gk')||'',PW='style="width:200px"';
+function view6(a){
+ if(!adm){a.innerHTML=`<div class=card><h2>Acceso administrador</h2><p>Escribe la clave para editar la liga.</p><div class=row><input id=pw type=password placeholder="Clave" ${PW}><button class=bt onclick="login()">Entrar</button></div>${msg?`<p>${msg}</p>`:''}</div>`;return}
+ const ss=seasons(),ts=ss.length?ss.at(-1):1,lj=D.partidas.filter(m=>m.temporada==ts).reduce((c,m)=>Math.max(c,m.jornada),0)+1,ns=D.jugadores;
+ a.innerHTML=(msg?`<div class=ok>${msg}</div>`:'')+`<div class=card><h2>➕ Nueva partida</h2><div class=row>Temporada <input id=nt class=k type=number value=${ts}> Jornada <input id=nj class=k type=number value=${lj}> Fecha <input id=nf type=date value=${new Date().toISOString().slice(0,10)}> Mapa <input id=nm></div>
+ <div class=w><table><tr><th class=l>Jugador</th><th>Kills</th><th>Muertes</th></tr>${ns.map((n,i)=>`<tr><td class=l>${esc(n)}</td><td><input class=k id=k${i} type=number min=0></td><td><input class=k id=d${i} type=number min=0></td></tr>`).join('')}</table></div>
+ <p style="color:var(--mu)">Deja en blanco a quien no jugó. El puesto y los puntos se calculan solos.</p><button class=bt onclick="addMatch()">Guardar partida</button></div>
+ <div class=card><h2>👥 Jugadores</h2><div class=row><input id=np placeholder="Nick nuevo"><button class=bt onclick="addP()">Añadir</button></div>${ns.map((n,i)=>`<div class=row><b style="min-width:150px">${esc(n)}</b><button class=bt onclick="renP(${i})">Renombrar</button><button class="bt r" onclick="delP(${i})">Borrar</button></div>`).join('')}</div>
+ <div class=card><h2>📋 Partidas guardadas</h2>${D.ids.slice().reverse().slice(0,30).map(id=>`<div class=row><b style="min-width:150px">${esc(id)}</b><span style="color:var(--mu)">${esc(D.by[id][0].fecha)} · ${D.by[id].length} jugadores</span><button class="bt r" onclick="delM('${esc(id)}')">Borrar</button></div>`).join('')||'Aún no hay partidas'}</div>
+ <div class=card><h2>🏆 Cerrar temporada (añade campeón al palmarés)</h2><div class=row>Temporada ${sel('cs',(ss.length?ss:[1]).map(x=>[x,'Temporada '+x]),ts,'void_')} MVP <select id=mvp><option value="">(el campeón)</option>${ns.map(n=>`<option>${esc(n)}</option>`).join('')}</select><button class=bt onclick="closeS()">Cerrar temporada</button></div></div>
+ <div class=card><h2>⚙ Ajustes</h2><div class=row>Puntos 1º→16º <input id=pts style="width:340px" value="${D.puntos.join(',')}"><button class=bt onclick="setP()">Guardar puntos</button></div>
+ <div class=row><button class=bt onclick="dl()">Descargar copia (data.json)</button><button class=bt onclick="sessionStorage.clear();adm=false;msg='';draw()">Cerrar sesión</button><button class="bt r" onclick="wipe()">Empezar de cero (borra todo)</button></div></div>`}
+async function login(){const k=$('#pw').value;const r=await fetch('/api/data',{method:'POST',headers:{'content-type':'application/json','x-admin':k},body:JSON.stringify({check:1})}).catch(()=>null);
+ if(r&&r.ok){sessionStorage.setItem('gk',k);adm=true;msg=''}else msg=r&&r.status==401?'❌ Clave incorrecta':'❌ El servidor no responde: falta conectar la base de datos o crear ADMIN_PASSWORD';draw()}
+async function save(t){prep();D.demo=false;$('#demo').hidden=true;msg='Guardando…';draw();
+ const o={demo:false,liga:D.liga,minPartidas:D.minPartidas||5,puntos:D.puntos,jugadores:D.jugadores,palmares:D.palmares,partidas:D.partidas.map(m=>({id:m.id,temporada:m.temporada,jornada:m.jornada,fecha:m.fecha,mapa:m.mapa,jugador:m.jugador,kills:m.kills,muertes:m.muertes}))};
+ try{const r=await fetch('/api/data',{method:'POST',headers:{'content-type':'application/json','x-admin':KEY()},body:JSON.stringify(o)});msg=r.ok?'✅ '+t:'❌ No se pudo guardar ('+r.status+'). Entra otra vez en Admin.'}catch(e){msg='❌ Sin conexión con el servidor'}draw()}
+function addMatch(){const t=+$('#nt').value,j=+$('#nj').value,f=$('#nf').value,mp=$('#nm').value.trim(),p2=String(j).padStart(2,'0');let n=1,id=`T${t}-J${p2}-P1`;while(D.by[id])id=`T${t}-J${p2}-P${++n}`;
+ const rows=[];D.jugadores.forEach((p,i)=>{const k=$('#k'+i).value,d=$('#d'+i).value;if(k!==''||d!=='')rows.push({id,temporada:t,jornada:j,fecha:f,mapa:mp,jugador:p,kills:+k||0,muertes:+d||0})});
+ if(rows.length<2)return alert('Rellena kills y muertes de al menos 2 jugadores');D.partidas.push(...rows);save('Partida '+id+' guardada')}
+function addP(){const n=$('#np').value.trim();if(!n||D.jugadores.includes(n))return alert('Escribe un nick que no exista');D.jugadores.push(n);save('Jugador '+n+' añadido')}
+function renP(i){const o=D.jugadores[i],n=(prompt('Nuevo nombre para '+o,o)||'').trim();if(!n||n==o||D.jugadores.includes(n))return;D.jugadores[i]=n;D.partidas.forEach(m=>{if(m.jugador==o)m.jugador=n});
+ D.palmares.forEach(p=>['campeon','subcampeon','tercero','mvp','killer'].forEach(f=>{if(p[f]==o)p[f]=n}));save('Renombrado a '+n)}
+function delP(i){const n=D.jugadores[i];if(D.partidas.some(m=>m.jugador==n))return alert(n+' tiene partidas. Borra primero esas partidas.');if(confirm('¿Borrar a '+n+'?')){D.jugadores.splice(i,1);save(n+' borrado')}}
+function delM(id){if(confirm('¿Borrar la partida '+id+'?')){D.partidas=D.partidas.filter(m=>m.id!=id);save('Partida borrada')}}
+function closeS(){const t=+document.querySelector('select[onchange^="void_"]').value,r=stats(m=>m.temporada==t).filter(x=>x.pj).sort((x,y)=>y.pts-x.pts||y.kills-x.kills||y.vic-x.vic||x.i-y.i);
+ if(r.length<3)return alert('Hacen falta partidas de al menos 3 jugadores en esa temporada');const k=r.slice().sort((x,y)=>y.kills-x.kills)[0];
+ D.palmares=D.palmares.filter(p=>p.temporada!=t);D.palmares.push({temporada:t,anio:D.partidas.find(m=>m.temporada==t).fecha.slice(0,4),campeon:r[0].n,subcampeon:r[1].n,tercero:r[2].n,mvp:$('#mvp').value||r[0].n,killer:k.n,killsKiller:k.kills});
+ D.palmares.sort((a,b)=>a.temporada-b.temporada);save('Temporada '+t+' cerrada: campeón '+r[0].n)}
+function setP(){D.puntos=$('#pts').value.split(',').map(x=>+x.trim()||0);save('Puntos guardados')}
+function wipe(){if(confirm('Se borrarán TODOS los jugadores, partidas y palmarés. ¿Seguro?')){D.jugadores=[];D.partidas=[];D.palmares=[];save('Liga vacía, lista para empezar')}}
+function dl(){const o={demo:false,liga:D.liga,minPartidas:D.minPartidas||5,puntos:D.puntos,jugadores:D.jugadores,palmares:D.palmares,partidas:D.partidas};const x=document.createElement('a');x.href=URL.createObjectURL(new Blob([JSON.stringify(o,null,1)],{type:'application/json'}));x.download='data.json';x.click()}
+function void_(){}
+</script></body></html>
