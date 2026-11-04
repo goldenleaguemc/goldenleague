@@ -96,7 +96,7 @@
       password: String(password || '')
     });
     if (error) throw cleanError(error);
-    return { user: data.user, session: data.session, profile: await getProfile() };
+    return { user: data.user, session: data.session, profile: null };
   }
 
   async function signOut() {
