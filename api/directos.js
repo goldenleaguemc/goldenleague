@@ -1,5 +1,5 @@
 /* /api/directos — SIN clave de YouTube.
- * GET : últimos ~15 vídeos del canal (RSS, con estado live/upcoming/done) + los directos guardados en Supabase.
+ * GET : últimos ~15 vídeos del canal (RSS; directos y vídeos normales, con estado si YouTube deja leerlo) + lo guardado en Supabase.
  * POST: solo admin (cabecera x-admin = ADMIN_PASSWORD):
  *   {act:'save',   id, title, start, dur}   → guarda un directo para siempre
  *   {act:'add',    url, title?, start?}     → añade uno a mano (autorrellena desde YouTube si puede)
@@ -61,6 +61,10 @@ async function inspect(v, force) {
   const m = html.match(/ytInitialPlayerResponse\s*=\s*(\{[\s\S]*?\})\s*;\s*(?:var\s|<\/script>)/);
   if (!m) throw new Error('no se han podido leer los datos del vídeo');
   const p = JSON.parse(m[1]), vd = p.videoDetails || {};
+  if (!vd.videoId) {   // YouTube no ha dado los datos (bloqueo / "confirma que no eres un robot"): no es "vídeo normal"
+    const ps = p.playabilityStatus || {};
+    throw new Error('YouTube no da los datos del vídeo desde este servidor (' + (ps.status || 'sin estado') + (ps.reason ? ': ' + ps.reason : '') + ')');
+  }
   const mf = (p.microformat && p.microformat.playerMicroformatRenderer) || {};
   const lb = mf.liveBroadcastDetails || null;
   const isLive = !!(lb || vd.isLive || vd.isUpcoming || vd.isLiveContent);
@@ -80,20 +84,20 @@ async function recent(diag) {
   const feed = await readRss(), items = [];
   let fails = 0;
   for (const v of feed) {
-    if (!diag && settled.has(v.id)) { const d = settled.get(v.id); if (d) items.push(d); continue; }
+    if (!diag && settled.has(v.id)) { items.push(settled.get(v.id)); continue; }
+    let it;
     try {
-      const it = await inspect(v, false);
-      if (diag) diag.push({ id: v.id, title: v.title, resultado: it ? 'directo (' + it.state + ')' : 'vídeo normal (descartado)' });
-      if (!it) { settled.set(v.id, null); continue; }
+      it = await inspect(v, true);                // lee estado, título, fecha y duración reales
+      if (diag) diag.push({ id: v.id, title: v.title, resultado: 'ok (' + it.state + ')' });
       if (it.state === 'done') settled.set(v.id, it);
-      items.push(it);
     } catch (e) {
-      fails++;
-      if (diag) diag.push({ id: v.id, title: v.title, resultado: 'ERROR: ' + (e.message || e) });
+      fails++;                                    // YouTube no responde: se muestra igualmente con los datos del RSS
+      it = { id: v.id, title: v.title, start: v.published, dur: '', state: 'done' };
+      if (diag) diag.push({ id: v.id, title: v.title, resultado: 'solo RSS (sin estado ni duración): ' + (e.message || e) });
     }
+    items.push(it);
   }
-  /* si fallaron lecturas, no se cachea para reintentar enseguida */
-  if (!fails) rssCache = { t: Date.now(), items };
+  if (!fails) rssCache = { t: Date.now(), items };   // si hubo fallos no se cachea, para reintentar
   return items;
 }
 
