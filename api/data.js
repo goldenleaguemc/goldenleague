@@ -4,7 +4,7 @@ const K = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
 const KEY = 'goldenleague';
 const headers = { Authorization: `Bearer ${K}`, 'content-type': 'application/json' };
 module.exports = async (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Cache-Control', req.method === 'GET' ? 's-maxage=30, stale-while-revalidate=300' : 'no-store');
   if (!U || !K) return res.status(500).json({ error: 'Falta conectar la base de datos (Upstash)' });
   try {
     if (req.method === 'GET') {
